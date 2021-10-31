@@ -1,21 +1,29 @@
 package formatter
 
 import (
+	"fmt"
 	"io"
+	"os"
 
-	_ "github.com/emersion/go-message"
+	"github.com/emersion/go-message"
 	_ "github.com/emersion/go-message/charset"
-	_ "github.com/emersion/go-message/mail"
+	emmail "github.com/emersion/go-message/mail"
 	"golang.org/x/text/transform"
 )
 
 type (
 	Formatter interface {
+		ReadMessage(r io.Reader) error
 	}
 
 	formatter struct {
 	}
 )
+
+func Format(r io.Reader) error {
+	f := New()
+	return f.ReadMessage(r)
+}
 
 func New() Formatter {
 	return &formatter{}
@@ -94,6 +102,26 @@ func (t crlfTransformer) Transform(dst, src []byte, atEOF bool) (nDst, nSrc int,
 
 func (t crlfTransformer) Reset() {}
 
-func (f *formatter) ReadMessage(inp io.Reader) error {
+const (
+	headerFrom = "From"
+)
+
+func (f *formatter) ReadMessage(r io.Reader) error {
+	r = transform.NewReader(r, crlfTransformer{})
+	m, err := message.Read(r)
+	if err != nil {
+		return fmt.Errorf("Failed reading mail message: %w", err)
+	}
+	headers := emmail.Header{
+		Header: m.Header,
+	}
+	if fromAddrs, err := headers.AddressList(headerFrom); err != nil || len(fromAddrs) == 0 {
+		headers.SetAddressList(headerFrom, []*emmail.Address{
+			{Name: "Name", Address: "mail@example.com"},
+		})
+	}
+	if err := m.WriteTo(transform.NewWriter(os.Stdout, lfTransformer{})); err != nil {
+		return fmt.Errorf("Failed writing mail message: %w", err)
+	}
 	return nil
 }

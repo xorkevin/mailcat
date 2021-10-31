@@ -1,9 +1,10 @@
 package cmd
 
 import (
-	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
+	"xorkevin.dev/mailcat/formatter"
 )
 
 var (
@@ -16,7 +17,7 @@ var formatCmd = &cobra.Command{
 	Short: "Formats plaintext mail output",
 	Long:  `Formats plaintext mail output`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("mail format")
+		formatter.Format(os.Stdin)
 	},
 	DisableAutoGenTag: true,
 }

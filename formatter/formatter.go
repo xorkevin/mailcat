@@ -3,7 +3,6 @@ package formatter
 import (
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/emersion/go-message"
 	_ "github.com/emersion/go-message/charset"
@@ -14,17 +13,29 @@ import (
 )
 
 type (
+	Opts struct {
+		CRLF bool
+	}
+
 	Formatter interface {
-		ReadMessage(r io.Reader) error
+		ReadMsg(r io.Reader, opts Opts) error
+		WriteMsg(r io.Writer, opts Opts) error
 	}
 
 	formatter struct {
+		m *message.Entity
 	}
 )
 
-func Format(r io.Reader) error {
+func Format(r io.Reader, w io.Writer, opts Opts) error {
 	f := New()
-	return f.ReadMessage(r)
+	if err := f.ReadMsg(r, opts); err != nil {
+		return err
+	}
+	if err := f.WriteMsg(w, opts); err != nil {
+		return err
+	}
+	return nil
 }
 
 func New() Formatter {
@@ -49,7 +60,7 @@ const (
 	contentTypeTextPlain = "text/plain"
 )
 
-func (f *formatter) ReadMessage(r io.Reader) error {
+func (f *formatter) ReadMsg(r io.Reader, opts Opts) error {
 	r = transform.NewReader(r, transformer.CRLF{})
 	m, err := message.Read(r)
 	if err != nil {
@@ -110,7 +121,18 @@ func (f *formatter) ReadMessage(r io.Reader) error {
 		headers.SetAddressList(headerFrom, addrs)
 	}
 	m.Header = headers.Header
-	if err := m.WriteTo(transform.NewWriter(os.Stdout, transformer.LF{})); err != nil {
+	f.m = m
+	return nil
+}
+
+func (f *formatter) WriteMsg(w io.Writer, opts Opts) error {
+	if f.m == nil {
+		return fmt.Errorf("No mail message read")
+	}
+	if !opts.CRLF {
+		w = transform.NewWriter(w, transformer.LF{})
+	}
+	if err := f.m.WriteTo(w); err != nil {
 		return fmt.Errorf("Failed writing mail message: %w", err)
 	}
 	return nil

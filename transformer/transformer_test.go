@@ -1,4 +1,4 @@
-package formatter
+package transformer
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 	"golang.org/x/text/transform"
 )
 
-func Test_lfTransformer(t *testing.T) {
+func Test_LF(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
@@ -29,17 +29,17 @@ func Test_lfTransformer(t *testing.T) {
 			t.Parallel()
 			assert := require.New(t)
 
-			b, err := io.ReadAll(transform.NewReader(strings.NewReader(tc.Inp), lfTransformer{}))
+			b, err := io.ReadAll(transform.NewReader(strings.NewReader(tc.Inp), LF{}))
 			assert.NoError(err)
 			assert.Equal([]byte(tc.Exp), b)
-			b2, err := io.ReadAll(transform.NewReader(bytes.NewReader(b), lfTransformer{}))
+			b2, err := io.ReadAll(transform.NewReader(bytes.NewReader(b), LF{}))
 			assert.NoError(err)
 			assert.Equal([]byte(tc.Exp), b2)
 		})
 	}
 }
 
-func Test_crlfTransformer(t *testing.T) {
+func Test_CRLF(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
@@ -58,10 +58,10 @@ func Test_crlfTransformer(t *testing.T) {
 			t.Parallel()
 			assert := require.New(t)
 
-			b, err := io.ReadAll(transform.NewReader(strings.NewReader(tc.Inp), crlfTransformer{}))
+			b, err := io.ReadAll(transform.NewReader(strings.NewReader(tc.Inp), CRLF{}))
 			assert.NoError(err)
 			assert.Equal([]byte(tc.Exp), b)
-			b2, err := io.ReadAll(transform.NewReader(bytes.NewReader(b), crlfTransformer{}))
+			b2, err := io.ReadAll(transform.NewReader(bytes.NewReader(b), CRLF{}))
 			assert.NoError(err)
 			assert.Equal([]byte(tc.Exp), b2)
 		})

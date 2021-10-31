@@ -12,6 +12,7 @@ var (
 	formatInteractive bool
 	formatTmpdir      string
 	formatCRLFOutput  bool
+	formatBodyInput   bool
 )
 
 var formatCmd = &cobra.Command{
@@ -21,6 +22,7 @@ var formatCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		if err := formatter.Format(os.Stdin, os.Stdout, formatter.Opts{
 			CRLF: formatCRLFOutput,
+			Body: formatBodyInput,
 		}); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -34,5 +36,6 @@ func init() {
 
 	formatCmd.PersistentFlags().BoolVarP(&formatInteractive, "interactive", "i", false, "specify mail headers interactively")
 	formatCmd.PersistentFlags().StringVarP(&formatTmpdir, "tmpdir", "d", "", "tmpdir for mail ($TMPDIR/mailcat if unset)")
-	formatCmd.PersistentFlags().BoolVarP(&formatCRLFOutput, "crlf", "b", false, "output with CRLF line endings")
+	formatCmd.PersistentFlags().BoolVarP(&formatCRLFOutput, "crlf", "m", false, "output with CRLF line endings")
+	formatCmd.PersistentFlags().BoolVarP(&formatBodyInput, "body", "b", false, "input is body instead of a full RFC5322 message with headers")
 }

@@ -13,11 +13,12 @@ var (
 
 var formatCmd = &cobra.Command{
 	Use:   "fmt",
-	Short: "Prints component configs",
-	Long:  `Prints component configs`,
+	Short: "Formats plaintext mail output",
+	Long:  `Formats plaintext mail output`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("mail format")
 	},
+	DisableAutoGenTag: true,
 }
 
 func init() {

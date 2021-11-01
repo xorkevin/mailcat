@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/textproto"
+	"strings"
 
 	"github.com/emersion/go-message"
 	_ "github.com/emersion/go-message/charset"
@@ -15,12 +17,15 @@ import (
 
 type (
 	Opts struct {
-		CRLF bool
-		Body bool
+		CRLF        bool
+		Body        bool
+		Headers     []string
+		AddHeaders  []string
+		MsgIDDomain string
 	}
 
 	Formatter interface {
-		SetDefaultHeaders(opts Opts) error
+		SetHeaders(opts Opts) error
 		ReadBody(r io.Reader, opts Opts) error
 		ReadMsg(r io.Reader, opts Opts) error
 		WriteMsg(r io.Writer, opts Opts) error
@@ -42,7 +47,7 @@ func Format(r io.Reader, w io.Writer, opts Opts) error {
 			return err
 		}
 	}
-	if err := f.SetDefaultHeaders(opts); err != nil {
+	if err := f.SetHeaders(opts); err != nil {
 		return err
 	}
 	if err := f.WriteMsg(w, opts); err != nil {
@@ -56,7 +61,8 @@ func New() Formatter {
 }
 
 var (
-	ErrNoMsg = errors.New("No mail message read")
+	ErrNoMsg         = errors.New("No mail message read")
+	ErrInvalidHeader = errors.New("Invalid header")
 )
 
 const (
@@ -77,15 +83,15 @@ const (
 	contentTypeTextPlain = "text/plain"
 )
 
-func (f *formatter) genMsgID() (string, error) {
+func (f *formatter) genMsgID(opts Opts) (string, error) {
 	u, err := uid.NewSnowflake(msgidRandBytes)
 	if err != nil {
 		return "", fmt.Errorf("Failed to generate msgid: %w", err)
 	}
-	return fmt.Sprintf("%s@%s", u.Base32(), "mail.example.com"), nil
+	return fmt.Sprintf("%s@%s", u.Base32(), opts.MsgIDDomain), nil
 }
 
-func (f *formatter) SetDefaultHeaders(opts Opts) error {
+func (f *formatter) SetHeaders(opts Opts) error {
 	if f.m == nil {
 		return ErrNoMsg
 	}
@@ -93,46 +99,76 @@ func (f *formatter) SetDefaultHeaders(opts Opts) error {
 		Header: f.m.Header,
 	}
 	// headers are in reverse order of appearance since headers are prepended
-	if t, params, err := headers.ContentType(); err != nil || t == "" {
-		headers.SetContentType(contentTypeTextPlain, nil)
+	for _, i := range opts.Headers {
+		parts := strings.SplitN(i, ":", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("%w: %s", ErrInvalidHeader, i)
+		}
+		k := textproto.CanonicalMIMEHeaderKey(strings.TrimSpace(parts[0]))
+		if !headers.Has(k) {
+			v := strings.TrimSpace(parts[1])
+			headers.Set(k, v)
+		}
+	}
+	for _, i := range opts.AddHeaders {
+		parts := strings.SplitN(i, ":", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("%w: %s", ErrInvalidHeader, i)
+		}
+		k := textproto.CanonicalMIMEHeaderKey(strings.TrimSpace(parts[0]))
+		v := strings.TrimSpace(parts[1])
+		headers.Add(k, v)
+	}
+	if t, params, err := headers.ContentType(); err != nil {
+		return fmt.Errorf("Invalid Content-Type: %w", err)
 	} else {
 		headers.SetContentType(t, params)
 	}
-	if replies, err := headers.MsgIDList(headerInReplyTo); err != nil || len(replies) != 1 {
-		headers.SetMsgIDList(headerInReplyTo, nil)
+	if replies, err := headers.MsgIDList(headerInReplyTo); err != nil {
+		return fmt.Errorf("Invalid In-Reply-To: %w", err)
+	} else if len(replies) > 1 {
+		return fmt.Errorf("%w: multiple In-Reply-To", ErrInvalidHeader)
 	} else {
 		headers.SetMsgIDList(headerInReplyTo, replies)
 	}
 	if msgid, err := headers.MessageID(); err != nil {
-		headers.SetMessageID("")
+		return fmt.Errorf("Invalid Message-ID: %w", err)
 	} else {
 		headers.SetMessageID(msgid)
 	}
-	if addrs, err := headers.AddressList(headerReplyTo); err != nil || len(addrs) != 1 {
-		headers.SetAddressList(headerReplyTo, nil)
+	if addrs, err := headers.AddressList(headerReplyTo); err != nil {
+		return fmt.Errorf("Invalid Reply-To: %w", err)
+	} else if len(addrs) > 1 {
+		return fmt.Errorf("%w: multiple Reply-To", ErrInvalidHeader)
 	} else {
 		headers.SetAddressList(headerReplyTo, addrs)
 	}
 	if subj, err := headers.Subject(); err != nil {
-		headers.SetSubject("")
+		return fmt.Errorf("Invalid Subject: %w", err)
 	} else {
 		headers.SetSubject(subj)
 	}
 	for _, i := range []string{headerBcc, headerCc} {
-		if addrs, err := headers.AddressList(i); err != nil || len(addrs) == 0 {
-			headers.SetAddressList(i, nil)
+		if addrs, err := headers.AddressList(i); err != nil {
+			return fmt.Errorf("Invalid %s: %w", i, err)
 		} else {
 			headers.SetAddressList(i, addrs)
 		}
 	}
-	if addrs, err := headers.AddressList(headerTo); err != nil || len(addrs) == 0 {
+	if addrs, err := headers.AddressList(headerTo); err != nil {
+		return fmt.Errorf("Invalid To: %w", err)
+	} else if len(addrs) == 0 {
 		headers.SetAddressList(headerTo, []*emmail.Address{
 			{Name: "Name", Address: "mail@example.com"},
 		})
 	} else {
 		headers.SetAddressList(headerTo, addrs)
 	}
-	if addrs, err := headers.AddressList(headerFrom); err != nil || len(addrs) != 1 {
+	if addrs, err := headers.AddressList(headerFrom); err != nil {
+		return fmt.Errorf("Invalid From: %w", err)
+	} else if len(addrs) > 1 {
+		return fmt.Errorf("%w: multiple From", ErrInvalidHeader)
+	} else if len(addrs) == 0 {
 		headers.SetAddressList(headerFrom, []*emmail.Address{
 			{Name: "Name", Address: "mail@example.com"},
 		})

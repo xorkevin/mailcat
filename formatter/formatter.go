@@ -353,7 +353,6 @@ func (f *formatter) Edit(prg string, editpath string) error {
 		return ErrNoMsg
 	}
 	cmd := exec.CommandContext(context.Background(), prg, editpath)
-	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {

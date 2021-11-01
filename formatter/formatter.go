@@ -1,7 +1,6 @@
 package formatter
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -59,10 +58,10 @@ func Format(r io.Reader, w io.Writer, opts Opts) error {
 			return err
 		}
 	}
+	if err := f.SetHeaders(opts.Headers, opts.AddHeaders); err != nil {
+		return err
+	}
 	if opts.Edit {
-		if err := f.SetHeaders(opts.Headers, opts.AddHeaders); err != nil {
-			return err
-		}
 		if err := func() error {
 			dir, prg, err := f.SetupEdit(opts.Tmpdir, opts.Editor)
 			if err != nil {
@@ -84,12 +83,8 @@ func Format(r io.Reader, w io.Writer, opts Opts) error {
 						log.Printf("Failed to close file %s: %v\n", editpath, err)
 					}
 				}()
-				b := bufio.NewWriter(file)
-				if err := f.WriteMsg(b, false); err != nil {
+				if err := f.WriteMsg(file, false); err != nil {
 					return err
-				}
-				if err := b.Flush(); err != nil {
-					return fmt.Errorf("Failed to write to file %s: %w", editpath, err)
 				}
 				return nil
 			}(); err != nil {
@@ -152,6 +147,7 @@ const (
 	headerReplyTo     = "Reply-To"
 	headerInReplyTo   = "In-Reply-To"
 	headerContentType = "Content-Type"
+	headerMsgID       = "Message-ID"
 )
 
 const (
@@ -210,6 +206,8 @@ func (f *formatter) SetHeaders(setHeaders, addHeaders []string) error {
 	}
 	if msgid, err := headers.MessageID(); err != nil {
 		return fmt.Errorf("Invalid Message-ID: %w", err)
+	} else if msgid == "" {
+		headers.Del(headerMsgID)
 	} else {
 		headers.SetMessageID(msgid)
 	}
@@ -225,30 +223,17 @@ func (f *formatter) SetHeaders(setHeaders, addHeaders []string) error {
 	} else {
 		headers.SetSubject(subj)
 	}
-	for _, i := range []string{headerBcc, headerCc} {
+	for _, i := range []string{headerBcc, headerCc, headerTo} {
 		if addrs, err := headers.AddressList(i); err != nil {
 			return fmt.Errorf("Invalid %s: %w", i, err)
 		} else {
 			headers.SetAddressList(i, addrs)
 		}
 	}
-	if addrs, err := headers.AddressList(headerTo); err != nil {
-		return fmt.Errorf("Invalid To: %w", err)
-	} else if len(addrs) == 0 {
-		headers.SetAddressList(headerTo, []*emmail.Address{
-			{Name: "Name", Address: "mail@example.com"},
-		})
-	} else {
-		headers.SetAddressList(headerTo, addrs)
-	}
 	if addrs, err := headers.AddressList(headerFrom); err != nil {
 		return fmt.Errorf("Invalid From: %w", err)
 	} else if len(addrs) > 1 {
 		return fmt.Errorf("%w: multiple From", ErrInvalidHeader)
-	} else if len(addrs) == 0 {
-		headers.SetAddressList(headerFrom, []*emmail.Address{
-			{Name: "Name", Address: "mail@example.com"},
-		})
 	} else {
 		headers.SetAddressList(headerFrom, addrs)
 	}
@@ -367,7 +352,11 @@ func (f *formatter) Edit(prg string, editpath string) error {
 	if f.m == nil {
 		return ErrNoMsg
 	}
-	if err := exec.CommandContext(context.Background(), prg, editpath).Run(); err != nil {
+	cmd := exec.CommandContext(context.Background(), prg, editpath)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
 		exitErr := &exec.ExitError{}
 		if errors.As(err, &exitErr) {
 			return fmt.Errorf("Editor exited with status code %d: %w", exitErr.ExitCode(), err)

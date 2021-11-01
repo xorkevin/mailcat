@@ -1,15 +1,10 @@
 package formatter
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/textproto"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/emersion/go-message"
@@ -28,15 +23,11 @@ type (
 		AddHeaders  []string
 		MsgIDDomain string
 		Edit        bool
-		Tmpdir      string
-		Editor      string
 	}
 
 	Formatter interface {
 		SetHeaders(setHeaders, addHeaders []string) error
 		SetHeadersFinal(msgidDomain string) error
-		SetupEdit(tmpdir string, editor string) (string, string, error)
-		Edit(prg string, editpath string) error
 		ReadBody(r io.Reader) error
 		ReadMsg(r io.Reader) error
 		WriteMsg(w io.Writer, crlf bool) error
@@ -62,58 +53,10 @@ func Format(r io.Reader, w io.Writer, opts Opts) error {
 		return err
 	}
 	if opts.Edit {
-		if err := func() error {
-			dir, prg, err := f.SetupEdit(opts.Tmpdir, opts.Editor)
-			if err != nil {
-				return err
-			}
-			defer func() {
-				if err := os.RemoveAll(dir); err != nil {
-					log.Printf("Failed to remove tmpdir %s: %v\n", dir, err)
-				}
-			}()
-			editpath := filepath.Join(dir, "edit")
-			if err := func() error {
-				file, err := os.OpenFile(editpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
-				if err != nil {
-					return fmt.Errorf("Failed to open file %s for writing: %w", editpath, err)
-				}
-				defer func() {
-					if err := file.Close(); err != nil {
-						log.Printf("Failed to close file %s: %v\n", editpath, err)
-					}
-				}()
-				if err := f.WriteMsg(file, false); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-			if err := f.Edit(prg, editpath); err != nil {
-				return err
-			}
-			if err := func() error {
-				file, err := os.Open(editpath)
-				if err != nil {
-					return fmt.Errorf("Failed to open file %s for reading: %w", editpath, err)
-				}
-				defer func() {
-					if err := file.Close(); err != nil {
-						log.Printf("Failed to close file %s: %v\n", editpath, err)
-					}
-				}()
-				if err := f.ReadMsg(file); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
+		if err := f.WriteMsg(w, false); err != nil {
 			return err
 		}
+		return nil
 	}
 	if err := f.SetHeadersFinal(opts.MsgIDDomain); err != nil {
 		return err
@@ -318,50 +261,6 @@ func (f *formatter) SetHeadersFinal(msgidDomain string) error {
 		headers.SetAddressList(headerFrom, addrs)
 	}
 	f.m.Header = headers.Header
-	return nil
-}
-
-func (f *formatter) SetupEdit(tmpdir string, editor string) (string, string, error) {
-	if editor == "" {
-		for _, i := range []string{"VISUAL", "EDITOR"} {
-			if v := os.Getenv(i); v != "" {
-				editor = v
-				break
-			}
-		}
-		if editor == "" {
-			for _, i := range []string{"nano", "vim", "vi", "emacs"} {
-				if _, err := exec.LookPath(i); err == nil {
-					editor = i
-					break
-				}
-			}
-			if editor == "" {
-				return "", "", ErrNoEditor
-			}
-		}
-	}
-	dir, err := os.MkdirTemp(tmpdir, "mailcat-*")
-	if err != nil {
-		return "", "", fmt.Errorf("Failed to create tmp dir: %w", err)
-	}
-	return dir, editor, nil
-}
-
-func (f *formatter) Edit(prg string, editpath string) error {
-	if f.m == nil {
-		return ErrNoMsg
-	}
-	cmd := exec.CommandContext(context.Background(), prg, editpath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		exitErr := &exec.ExitError{}
-		if errors.As(err, &exitErr) {
-			return fmt.Errorf("Editor exited with status code %d: %w", exitErr.ExitCode(), err)
-		}
-		return fmt.Errorf("Editor failed: %w", err)
-	}
 	return nil
 }
 

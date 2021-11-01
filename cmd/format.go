@@ -15,8 +15,6 @@ var (
 	formatAddHeaders  []string
 	formatMsgIDDomain string
 	formatEdit        bool
-	formatTmpdir      string
-	formatEditor      string
 )
 
 var formatCmd = &cobra.Command{
@@ -31,8 +29,6 @@ var formatCmd = &cobra.Command{
 			AddHeaders:  formatAddHeaders,
 			MsgIDDomain: formatMsgIDDomain,
 			Edit:        formatEdit,
-			Tmpdir:      formatTmpdir,
-			Editor:      formatEditor,
 		}); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -50,6 +46,4 @@ func init() {
 	formatCmd.PersistentFlags().StringArrayVarP(&formatAddHeaders, "add", "a", nil, "specify header values to be added (HEADER:VALUE); may be specified multiple times")
 	formatCmd.PersistentFlags().StringVarP(&formatMsgIDDomain, "msgid", "y", "mail.example.com", "set default generated message id domain")
 	formatCmd.PersistentFlags().BoolVarP(&formatEdit, "edit", "e", false, "use editor to edit")
-	formatCmd.PersistentFlags().StringVarP(&formatTmpdir, "tmpdir", "d", "", "tmpdir for mail ($TMPDIR/mailcat-* if unset)")
-	formatCmd.PersistentFlags().StringVar(&formatEditor, "editor", "", "set editor (by default uses first of $VISUAL, $EDITOR, nano, vim, vi, emacs)")
 }

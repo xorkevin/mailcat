@@ -39,7 +39,7 @@ type (
 		Edit(prg string, editpath string) error
 		ReadBody(r io.Reader) error
 		ReadMsg(r io.Reader) error
-		WriteMsg(r io.Writer, crlf bool) error
+		WriteMsg(w io.Writer, crlf bool) error
 	}
 
 	formatter struct {

@@ -155,7 +155,10 @@ func (s *sender) Send(addr string, username, password string, from, to string) e
 	if err := s.m.WriteTo(b); err != nil {
 		return fmt.Errorf("Failed to write mail message: %w", err)
 	}
-	auth := sasl.NewPlainClient("", username, password)
+	var auth sasl.Client
+	if username != "" {
+		auth = sasl.NewPlainClient("", username, password)
+	}
 	if err := smtp.SendMail(addr, auth, from, []string{to}, b); err != nil {
 		return fmt.Errorf("Failed to send mail: %w", err)
 	}

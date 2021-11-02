@@ -1,6 +1,7 @@
 package send
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -8,16 +9,24 @@ import (
 	"github.com/emersion/go-message"
 	_ "github.com/emersion/go-message/charset"
 	emmail "github.com/emersion/go-message/mail"
+	"github.com/emersion/go-sasl"
+	"github.com/emersion/go-smtp"
 	"golang.org/x/text/transform"
 	"xorkevin.dev/mailcat/transformer"
 )
 
 type (
 	Opts struct {
+		Addr     string
+		Username string
+		Password string
+		From     string
+		To       string
 	}
 
 	Sender interface {
 		ReadMsg(r io.Reader) error
+		Send(addr string, username, password string, from, to string) error
 	}
 
 	sender struct {
@@ -26,7 +35,13 @@ type (
 )
 
 func Send(r io.Reader, opts Opts) error {
-	fmt.Println("hello world")
+	s := New()
+	if err := s.ReadMsg(r); err != nil {
+		return err
+	}
+	if err := s.Send(opts.Addr, opts.Username, opts.Password, opts.From, opts.To); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -35,7 +50,9 @@ func New() Sender {
 }
 
 var (
+	ErrNoMsg         = errors.New("No mail message read")
 	ErrInvalidHeader = errors.New("Invalid header")
+	ErrInvalidArgs   = errors.New("Invalid args")
 )
 
 const (
@@ -118,5 +135,29 @@ func (s *sender) ReadMsg(r io.Reader) error {
 		}
 	}
 	s.m = m
+	return nil
+}
+
+func (s *sender) Send(addr string, username, password string, from, to string) error {
+	if s.m == nil {
+		return ErrNoMsg
+	}
+	if addr == "" {
+		return fmt.Errorf("%w: no address", ErrInvalidArgs)
+	}
+	if from == "" {
+		return fmt.Errorf("%w: no smtp from", ErrInvalidArgs)
+	}
+	if to == "" {
+		return fmt.Errorf("%w: no smtp to", ErrInvalidArgs)
+	}
+	b := &bytes.Buffer{}
+	if err := s.m.WriteTo(b); err != nil {
+		return fmt.Errorf("Failed to write mail message: %w", err)
+	}
+	auth := sasl.NewPlainClient("", username, password)
+	if err := smtp.SendMail(addr, auth, from, []string{to}, b); err != nil {
+		return fmt.Errorf("Failed to send mail: %w", err)
+	}
 	return nil
 }

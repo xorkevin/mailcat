@@ -65,6 +65,7 @@ const (
 	headerInReplyTo   = "In-Reply-To"
 	headerContentType = "Content-Type"
 	headerMsgID       = "Message-ID"
+	headerDate        = "Date"
 )
 
 func (s *sender) ReadMsg(r io.Reader) error {
@@ -80,6 +81,11 @@ func (s *sender) ReadMsg(r io.Reader) error {
 		return fmt.Errorf("Invalid Message-ID: %w", err)
 	} else if msgid == "" {
 		return fmt.Errorf("%w: no Message-ID", ErrInvalidHeader)
+	}
+	if headers.Has(headerDate) {
+		if _, err := headers.Date(); err != nil {
+			return fmt.Errorf("Invalid Date: %w", err)
+		}
 	}
 	if addrs, err := headers.AddressList(headerFrom); err != nil {
 		return fmt.Errorf("Invalid From: %w", err)

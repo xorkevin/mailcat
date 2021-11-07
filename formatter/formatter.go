@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/textproto"
 	"strings"
+	"time"
 
 	"github.com/emersion/go-message"
 	_ "github.com/emersion/go-message/charset"
@@ -91,6 +92,7 @@ const (
 	headerInReplyTo   = "In-Reply-To"
 	headerContentType = "Content-Type"
 	headerMsgID       = "Message-ID"
+	headerDate        = "Date"
 )
 
 const (
@@ -180,6 +182,13 @@ func (f *formatter) SetHeaders(setHeaders, addHeaders []string) error {
 	} else {
 		headers.SetAddressList(headerFrom, addrs)
 	}
+	if headers.Has(headerDate) {
+		t, err := headers.Date()
+		if err != nil {
+			return fmt.Errorf("Invalid Date: %w", err)
+		}
+		headers.SetDate(t)
+	}
 	f.m.Header = headers.Header
 	return nil
 }
@@ -259,6 +268,15 @@ func (f *formatter) SetHeadersFinal(msgidDomain string) error {
 		return fmt.Errorf("%w: no From", ErrInvalidHeader)
 	} else {
 		headers.SetAddressList(headerFrom, addrs)
+	}
+	if headers.Has(headerDate) {
+		t, err := headers.Date()
+		if err != nil {
+			return fmt.Errorf("Invalid Date: %w", err)
+		}
+		headers.SetDate(t)
+	} else {
+		headers.SetDate(time.Now().Round(0))
 	}
 	f.m.Header = headers.Header
 	return nil

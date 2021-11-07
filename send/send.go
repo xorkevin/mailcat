@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/emersion/go-message"
 	_ "github.com/emersion/go-message/charset"
@@ -179,6 +180,10 @@ func (s *sender) ReadMsg(r io.Reader) error {
 	return nil
 }
 
+const (
+	durationMonth = 30 * 24 * time.Hour
+)
+
 func (s *sender) sign(w io.Writer, r io.Reader) error {
 	if err := dkim.Sign(w, r, &dkim.SignOptions{
 		Domain:                 s.fromAddrDomain,
@@ -189,6 +194,7 @@ func (s *sender) sign(w io.Writer, r io.Reader) error {
 		HeaderCanonicalization: dkim.CanonicalizationRelaxed,
 		BodyCanonicalization:   dkim.CanonicalizationRelaxed,
 		HeaderKeys:             s.headers,
+		Expiration:             time.Now().Round(0).Add(durationMonth),
 	}); err != nil {
 		return fmt.Errorf("Failed to dkim sign message: %w", err)
 	}

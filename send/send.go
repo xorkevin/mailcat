@@ -195,6 +195,7 @@ func (s *sender) sign(w io.Writer, r io.Reader) error {
 		BodyCanonicalization:   dkim.CanonicalizationRelaxed,
 		HeaderKeys:             s.headers,
 		Expiration:             time.Now().Round(0).Add(durationMonth),
+		QueryMethods:           []dkim.QueryMethod{dkim.QueryMethodDNSTXT},
 	}); err != nil {
 		return fmt.Errorf("Failed to dkim sign message: %w", err)
 	}

@@ -3,9 +3,14 @@ package send
 import (
 	"bytes"
 	"crypto"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
+	"log"
+	"os"
 	"strings"
 	"time"
 
@@ -27,11 +32,12 @@ type (
 		From         string
 		To           string
 		DKIMSelector string
+		DKIMKeyFile  string
 	}
 
 	Sender interface {
 		ReadMsg(r io.Reader) error
-		Send(addr string, username, password string, from, to string, dkimSelector string) error
+		Send(addr string, username, password string, from, to string, dkimSelector string, dkimKeyFile string) error
 	}
 
 	sender struct {
@@ -47,7 +53,7 @@ func Send(r io.Reader, opts Opts) error {
 	if err := s.ReadMsg(r); err != nil {
 		return err
 	}
-	if err := s.Send(opts.Addr, opts.Username, opts.Password, opts.From, opts.To, opts.DKIMSelector); err != nil {
+	if err := s.Send(opts.Addr, opts.Username, opts.Password, opts.From, opts.To, opts.DKIMSelector, opts.DKIMKeyFile); err != nil {
 		return err
 	}
 	return nil
@@ -184,12 +190,12 @@ const (
 	durationMonth = 30 * 24 * time.Hour
 )
 
-func (s *sender) sign(w io.Writer, r io.Reader) error {
+func (s *sender) sign(w io.Writer, r io.Reader, selector string, signer crypto.Signer) error {
 	if err := dkim.Sign(w, r, &dkim.SignOptions{
 		Domain:                 s.fromAddrDomain,
-		Selector:               "tests",
+		Selector:               selector,
 		Identifier:             s.fromAddr,
-		Signer:                 nil,
+		Signer:                 signer,
 		Hash:                   crypto.SHA256,
 		HeaderCanonicalization: dkim.CanonicalizationRelaxed,
 		BodyCanonicalization:   dkim.CanonicalizationRelaxed,
@@ -202,7 +208,11 @@ func (s *sender) sign(w io.Writer, r io.Reader) error {
 	return nil
 }
 
-func (s *sender) Send(addr string, username, password string, from, to string, dkimSelector string) error {
+const (
+	pemBlockType = "PRIVATE KEY"
+)
+
+func (s *sender) Send(addr string, username, password string, from, to string, dkimSelector string, dkimKeyFile string) error {
 	if s.m == nil {
 		return ErrNoMsg
 	}
@@ -220,8 +230,39 @@ func (s *sender) Send(addr string, username, password string, from, to string, d
 		return fmt.Errorf("Failed to write mail message: %w", err)
 	}
 	if dkimSelector != "" {
+		k := &bytes.Buffer{}
+		if err := func() error {
+			f, err := os.Open(dkimKeyFile)
+			if err != nil {
+				return fmt.Errorf("Failed to open file %s: %w", dkimKeyFile, err)
+			}
+			defer func() {
+				if err := f.Close(); err != nil {
+					log.Printf("Failed closing file %s: %v", dkimKeyFile, err)
+				}
+			}()
+			if _, err := io.Copy(k, f); err != nil {
+				return fmt.Errorf("Failed reading file %s: %w", dkimKeyFile, err)
+			}
+			return nil
+		}(); err != nil {
+			return err
+		}
+		pemBlock, _ := pem.Decode(k.Bytes())
+		if pemBlock == nil || pemBlock.Type != pemBlockType {
+			return fmt.Errorf("Invalid rsakey pem file %s of type %s", dkimKeyFile, pemBlock.Type)
+		}
+		rawKey, err := x509.ParsePKCS8PrivateKey(pemBlock.Bytes)
+		if err != nil {
+			return fmt.Errorf("Invalid rsakey pkcs8 of pem file %s: %w", dkimKeyFile, err)
+		}
+		key, ok := rawKey.(*rsa.PrivateKey)
+		if !ok {
+			return fmt.Errorf("%w: Key of pem file %s is not rsa", ErrInvalidArgs, dkimKeyFile)
+		}
+		key.Precompute()
 		t := &bytes.Buffer{}
-		if err := s.sign(t, b); err != nil {
+		if err := s.sign(t, b, dkimSelector, key); err != nil {
 			return err
 		}
 		b = t

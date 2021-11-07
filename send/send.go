@@ -63,6 +63,7 @@ const (
 	headerSubject     = "Subject"
 	headerReplyTo     = "Reply-To"
 	headerInReplyTo   = "In-Reply-To"
+	headerReferences  = "References"
 	headerContentType = "Content-Type"
 	headerMsgID       = "Message-ID"
 	headerDate        = "Date"
@@ -133,6 +134,13 @@ func (s *sender) ReadMsg(r io.Reader) error {
 			return fmt.Errorf("%w: multiple In-Reply-To", ErrInvalidHeader)
 		} else if len(replies) == 0 {
 			return fmt.Errorf("%w: empty In-Reply-To", ErrInvalidHeader)
+		}
+	}
+	if headers.Has(headerReferences) {
+		if replies, err := headers.MsgIDList(headerReferences); err != nil {
+			return fmt.Errorf("Invalid References: %w", err)
+		} else if len(replies) == 0 {
+			return fmt.Errorf("%w: empty References", ErrInvalidHeader)
 		}
 	}
 	if headers.Has(headerContentType) {

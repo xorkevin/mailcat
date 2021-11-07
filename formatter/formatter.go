@@ -90,6 +90,7 @@ const (
 	headerSubject     = "Subject"
 	headerReplyTo     = "Reply-To"
 	headerInReplyTo   = "In-Reply-To"
+	headerReferences  = "References"
 	headerContentType = "Content-Type"
 	headerMsgID       = "Message-ID"
 	headerDate        = "Date"
@@ -141,6 +142,11 @@ func (f *formatter) SetHeaders(setHeaders, addHeaders []string) error {
 		} else {
 			headers.SetContentType(t, params)
 		}
+	}
+	if replies, err := headers.MsgIDList(headerReferences); err != nil {
+		return fmt.Errorf("Invalid References: %w", err)
+	} else {
+		headers.SetMsgIDList(headerReferences, replies)
 	}
 	if replies, err := headers.MsgIDList(headerInReplyTo); err != nil {
 		return fmt.Errorf("Invalid In-Reply-To: %w", err)

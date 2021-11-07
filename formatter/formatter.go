@@ -214,6 +214,13 @@ func (f *formatter) SetHeadersFinal(msgidDomain string) error {
 			headers.SetContentType(t, params)
 		}
 	}
+	if refs, err := headers.MsgIDList(headerReferences); err != nil {
+		return fmt.Errorf("Invalid References: %w", err)
+	} else if len(refs) == 0 {
+		headers.Del(headerReferences)
+	} else {
+		headers.SetMsgIDList(headerReferences, refs)
+	}
 	if replies, err := headers.MsgIDList(headerInReplyTo); err != nil {
 		return fmt.Errorf("Invalid In-Reply-To: %w", err)
 	} else if len(replies) > 1 {

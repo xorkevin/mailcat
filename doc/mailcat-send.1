@@ -1,0 +1,65 @@
+.nh
+.TH "mailcat" "1" "Nov 2021" "" ""
+
+.SH NAME
+.PP
+mailcat\-send \- Sends smtp mail
+
+
+.SH SYNOPSIS
+.PP
+\fBmailcat send [flags]\fP
+
+
+.SH DESCRIPTION
+.PP
+Sends smtp mail
+
+
+.SH OPTIONS
+.PP
+\fB\-\-dkim\-keyfile\fP=""
+	dkim key file (PEM)
+
+.PP
+\fB\-\-dkim\-selector\fP=""
+	dkim selector
+
+.PP
+\fB\-i\fP, \fB\-\-from\fP=""
+	smtp from
+
+.PP
+\fB\-h\fP, \fB\-\-help\fP[=false]
+	help for send
+
+.PP
+\fB\-a\fP, \fB\-\-password\fP=""
+	smtp auth password
+
+.PP
+\fB\-s\fP, \fB\-\-server\fP=""
+	smtp server address
+
+.PP
+\fB\-o\fP, \fB\-\-to\fP=""
+	smtp to
+
+.PP
+\fB\-u\fP, \fB\-\-username\fP=""
+	smtp auth username
+
+
+.SH OPTIONS INHERITED FROM PARENT COMMANDS
+.PP
+\fB\-\-config\fP=""
+	config file (default is $XDG\_CONFIG\_HOME/.mailcat.yaml)
+
+.PP
+\fB\-\-debug\fP[=false]
+	turn on debug output
+
+
+.SH SEE ALSO
+.PP
+\fBmailcat(1)\fP

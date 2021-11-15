@@ -52,6 +52,6 @@ func init() {
 	formatCmd.PersistentFlags().StringArrayVarP(&formatHeaders, "header", "s", nil, "set default header value (HEADER:VALUE); may be specified multiple times")
 	formatCmd.PersistentFlags().StringArrayVarP(&formatAddHeaders, "add", "a", nil, "specify header values to be added (HEADER:VALUE); may be specified multiple times")
 	formatCmd.PersistentFlags().StringVarP(&formatMsgIDDomain, "msgid", "y", "mail.example.com", "set default generated message id domain")
-	formatCmd.PersistentFlags().BoolVarP(&formatEdit, "edit", "e", false, "use editor to edit")
+	formatCmd.PersistentFlags().BoolVarP(&formatEdit, "edit", "e", false, "output in editor convenient format")
 	formatCmd.PersistentFlags().BoolVarP(&formatEmpty, "empty", "z", false, "do not read from stdin and instead use empty reader")
 }

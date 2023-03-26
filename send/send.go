@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -225,23 +224,23 @@ func (s *sender) Send(addr string, username, password string, from, to string, d
 	if to == "" {
 		return fmt.Errorf("%w: no smtp to", ErrInvalidArgs)
 	}
-	b := &bytes.Buffer{}
-	if err := s.m.WriteTo(b); err != nil {
+	var b bytes.Buffer
+	if err := s.m.WriteTo(&b); err != nil {
 		return fmt.Errorf("Failed to write mail message: %w", err)
 	}
 	if dkimSelector != "" {
-		k := &bytes.Buffer{}
-		if err := func() error {
+		var k bytes.Buffer
+		if err := func() (retErr error) {
 			f, err := os.Open(dkimKeyFile)
 			if err != nil {
 				return fmt.Errorf("Failed to open file %s: %w", dkimKeyFile, err)
 			}
 			defer func() {
 				if err := f.Close(); err != nil {
-					log.Printf("Failed closing file %s: %v", dkimKeyFile, err)
+					retErr = errors.Join(retErr, fmt.Errorf("Failed closing file %s: %w", dkimKeyFile, err))
 				}
 			}()
-			if _, err := io.Copy(k, f); err != nil {
+			if _, err := io.Copy(&k, f); err != nil {
 				return fmt.Errorf("Failed reading file %s: %w", dkimKeyFile, err)
 			}
 			return nil
@@ -261,8 +260,8 @@ func (s *sender) Send(addr string, username, password string, from, to string, d
 			return fmt.Errorf("%w: Key of pem file %s is not rsa", ErrInvalidArgs, dkimKeyFile)
 		}
 		key.Precompute()
-		t := &bytes.Buffer{}
-		if err := s.sign(t, b, dkimSelector, key); err != nil {
+		var t bytes.Buffer
+		if err := s.sign(&t, &b, dkimSelector, key); err != nil {
 			return err
 		}
 		b = t
@@ -271,7 +270,7 @@ func (s *sender) Send(addr string, username, password string, from, to string, d
 	if username != "" {
 		auth = sasl.NewPlainClient("", username, password)
 	}
-	if err := smtp.SendMail(addr, auth, from, []string{to}, b); err != nil {
+	if err := smtp.SendMail(addr, auth, from, []string{to}, &b); err != nil {
 		return fmt.Errorf("Failed to send mail: %w", err)
 	}
 	return nil

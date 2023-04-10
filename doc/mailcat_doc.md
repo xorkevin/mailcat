@@ -13,13 +13,6 @@ generate documentation for mailcat in several formats
   -o, --output string   documentation output path (default ".")
 ```
 
-### Options inherited from parent commands
-
-```
-      --config string   config file (default is $XDG_CONFIG_HOME/.mailcat.yaml)
-      --debug           turn on debug output
-```
-
 ### SEE ALSO
 
 * [mailcat](mailcat.md)	 - A mail and smtp test tool

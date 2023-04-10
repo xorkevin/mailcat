@@ -23,13 +23,6 @@ mailcat send [flags]
   -u, --username string        smtp auth username
 ```
 
-### Options inherited from parent commands
-
-```
-      --config string   config file (default is $XDG_CONFIG_HOME/.mailcat.yaml)
-      --debug           turn on debug output
-```
-
 ### SEE ALSO
 
 * [mailcat](mailcat.md)	 - A mail and smtp test tool

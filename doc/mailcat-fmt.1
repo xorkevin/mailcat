@@ -1,9 +1,9 @@
 .nh
-.TH "mailcat" "1" "Nov 2021" "" ""
+.TH "mailcat" "1" "Apr 2023" "" ""
 
 .SH NAME
 .PP
-mailcat\-fmt \- Formats plaintext mail output
+mailcat-fmt - Formats plaintext mail output
 
 
 .SH SYNOPSIS
@@ -18,46 +18,36 @@ Formats plaintext mail output
 
 .SH OPTIONS
 .PP
-\fB\-a\fP, \fB\-\-add\fP=[]
+\fB-a\fP, \fB--add\fP=[]
 	specify header values to be added (HEADER:VALUE); may be specified multiple times
 
 .PP
-\fB\-b\fP, \fB\-\-body\fP[=false]
+\fB-b\fP, \fB--body\fP[=false]
 	input is body instead of a full RFC5322 message with headers
 
 .PP
-\fB\-m\fP, \fB\-\-crlf\fP[=false]
+\fB-m\fP, \fB--crlf\fP[=false]
 	output with CRLF line endings
 
 .PP
-\fB\-e\fP, \fB\-\-edit\fP[=false]
+\fB-e\fP, \fB--edit\fP[=false]
 	output in editor convenient format
 
 .PP
-\fB\-z\fP, \fB\-\-empty\fP[=false]
+\fB-z\fP, \fB--empty\fP[=false]
 	do not read from stdin and instead use empty reader
 
 .PP
-\fB\-s\fP, \fB\-\-header\fP=[]
+\fB-s\fP, \fB--header\fP=[]
 	set default header value (HEADER:VALUE); may be specified multiple times
 
 .PP
-\fB\-h\fP, \fB\-\-help\fP[=false]
+\fB-h\fP, \fB--help\fP[=false]
 	help for fmt
 
 .PP
-\fB\-y\fP, \fB\-\-msgid\fP="mail.example.com"
+\fB-y\fP, \fB--msgid\fP="mail.example.com"
 	set default generated message id domain
-
-
-.SH OPTIONS INHERITED FROM PARENT COMMANDS
-.PP
-\fB\-\-config\fP=""
-	config file (default is $XDG\_CONFIG\_HOME/.mailcat.yaml)
-
-.PP
-\fB\-\-debug\fP[=false]
-	turn on debug output
 
 
 .SH SEE ALSO

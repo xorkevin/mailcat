@@ -1,6 +1,6 @@
 module xorkevin.dev/mailcat
 
-go 1.17
+go 1.22.0
 
 require (
 	github.com/emersion/go-message v0.16.0
